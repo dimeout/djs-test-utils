@@ -72,5 +72,5 @@ type _PermissionNamesCompatible = Extends<
   DiscordPermissionNameUnion
 >;
 
-declare const never: never;
+const never = undefined as never;
 export const _types = never;
