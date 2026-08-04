@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "paths": {
+      "djs-test-utils": ["./"]
+    }
+  },
+  "include": ["index.d.ts", "src/**/*.js", "test/**/*.ts", "test/**/*.d.ts"]
+}
