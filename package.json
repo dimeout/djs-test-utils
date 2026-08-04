@@ -1,6 +1,6 @@
 {
   "name": "djs-test-utils",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Lightweight mock harness for unit testing discord.js bots without connecting to Discord.",
   "author": "dimeout",
   "type": "module",
