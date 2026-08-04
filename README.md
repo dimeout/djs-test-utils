@@ -39,6 +39,8 @@ Vitest, Jest, node:test, ava, etc. The library is framework-agnostic.
 
 > Works with `discord.js` v13, v14, and v15 via peer dependency compatibility.
 
+This package is tested against `discord.js` versions 13, 14, and 15 in CI.
+
 ## Highlights
 
 - Shape-compatible mock objects for `Interaction`, `Message`, `User`, `Guild`,
