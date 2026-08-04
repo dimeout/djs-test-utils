@@ -34,8 +34,7 @@ export class MockInteraction {
     } = options;
     this.commandName = commandName;
     this.customId = customId;
-    this.isButton = () => isButtonInteraction;
-    this.isChatInputCommand = () => !isButtonInteraction;
+    this._isButtonInteraction = isButtonInteraction;
 
     this.user = user ?? mockUser();
     this.guild = guild ?? mockGuild();
@@ -60,6 +59,8 @@ export class MockInteraction {
     this.replied = false;
     this.deferred = false;
     this.ephemeralOnDefer = false;
+    /** @type {Array<{ name: string; value: string | number }>} */
+    this.autocompleteResponses = [];
 
     /** @type {import("../index.js").MockInteractionOptions["options"]} */
     this.options = {
@@ -81,6 +82,26 @@ export class MockInteraction {
       getRole: (name) => this._options[name] ?? null,
       getSubcommand: () => this._subcommand,
     };
+  }
+
+  /** @returns {boolean} */
+  isButton() {
+    return this._isButtonInteraction;
+  }
+
+  /** @returns {boolean} */
+  isChatInputCommand() {
+    return !this._isButtonInteraction;
+  }
+
+  /** @returns {boolean} */
+  isStringSelectMenu() {
+    return false;
+  }
+
+  /** @returns {boolean} */
+  isModalSubmit() {
+    return false;
   }
 
   _maybeFailRateLimit() {
@@ -134,9 +155,67 @@ export class MockInteraction {
     return payload;
   }
 
+  /** @param {Array<{ name: string; value: string | number }>} choices */
+  async respond(choices) {
+    if (!Array.isArray(choices)) {
+      throw new Error("MockInteraction.respond() expects an array of choices.");
+    }
+    this.autocompleteResponses.push(...choices);
+    return choices;
+  }
+
   /** Convenience: the content string of the most recent reply/editReply. */
   get lastReplyContent() {
     const last = this.replies[this.replies.length - 1];
     return last?.content ?? null;
+  }
+}
+
+export class MockButtonInteraction extends MockInteraction {
+  constructor(options = {}) {
+    super({ ...options, isButtonInteraction: true });
+  }
+
+  /** @returns {boolean} */
+  isButton() {
+    return true;
+  }
+}
+
+export class MockSelectMenuInteraction extends MockInteraction {
+  /**
+   * @param {Partial<import("../index.js").MockInteractionOptions> & {
+   *   values?: string[];
+   * }} [options]
+   */
+  constructor(options = {}) {
+    super({ ...options, isButtonInteraction: false });
+    this.values = options.values ?? [];
+  }
+
+  /** @returns {boolean} */
+  isStringSelectMenu() {
+    return true;
+  }
+}
+
+export class MockModalSubmitInteraction extends MockInteraction {
+  /**
+   * @param {Partial<import("../index.js").MockInteractionOptions> & {
+   *   fields?: Record<string, string>;
+   * }} [options]
+   */
+  constructor(options = {}) {
+    super({ ...options, isButtonInteraction: false });
+    const fieldValues = options.fields ?? {};
+    this.fields = {
+      /** @param {string} name */
+      getTextInputValue: (name) => fieldValues[name] ?? null,
+    };
+  }
+
+  /** @returns {boolean} */
+  isModalSubmit() {
+    return true;
   }
 }

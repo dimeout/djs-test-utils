@@ -46,6 +46,9 @@ This package is tested against `discord.js` versions 13, 14, and 15 in CI.
 - Shape-compatible mock objects for `Interaction`, `Message`, `User`, `Guild`,
   `GuildMember`, `Channel`, `Role`, and permissions
 - `MockInteraction` mimics slash command interactions
+- `MockButtonInteraction`, `MockSelectMenuInteraction`, and `MockModalSubmitInteraction` cover component/modal interactions
+- Autocomplete support via `interaction.respond(choices)` and response assertions
+- `mockEmbed()` plus embed assertions for rich message replies
 - `createMockBot()` builds a connected mock client/guild/member/channel suite
 - Assertion helpers work without a specific test framework
 - Shared runner configs and CLI scaffolding included
@@ -129,9 +132,11 @@ const regularUser = mockMember();
 - `interaction.deferReply({ ephemeral })`
 - `interaction.editReply(content)`
 - `interaction.followUp(content)`
+- `interaction.respond(choices)` for autocomplete handlers
 - `interaction.replies`
 - `interaction.followUps`
 - `interaction.lastReplyContent`
+- `interaction.autocompleteResponses`
 
 ```js
 const interaction = new MockInteraction({
@@ -143,6 +148,69 @@ const interaction = new MockInteraction({
 
 Calling `reply()` twice without `deferReply()` first throws, matching
 discord.js's real interaction reply behavior.
+
+## Component and modal interactions
+
+The package also exports dedicated mocks for component and modal events:
+
+```js
+import {
+  MockButtonInteraction,
+  MockSelectMenuInteraction,
+  MockModalSubmitInteraction,
+} from "djs-test-utils";
+
+const button = new MockButtonInteraction({ customId: "confirm" });
+const select = new MockSelectMenuInteraction({ values: ["opt1", "opt2"] });
+const modal = new MockModalSubmitInteraction({ fields: { reason: "yes" } });
+```
+
+These support the common discord.js predicates and payloads:
+
+- `isButton()`
+- `isStringSelectMenu()` and `values`
+- `isModalSubmit()` and `fields.getTextInputValue()`
+
+## Embed helpers
+
+Use `mockEmbed()` to build reply embeds and the assertion helpers to verify content:
+
+```js
+import {
+  mockEmbed,
+  expectReplyEmbed,
+  expectEmbedTitle,
+  expectEmbedDescription,
+  expectEmbedField,
+} from "djs-test-utils";
+
+const embed = mockEmbed({
+  title: "Hello",
+  description: "World",
+  color: 0xff0000,
+  fields: [{ name: "reason", value: "Testing" }],
+});
+
+await interaction.reply({ embeds: [embed] });
+const replyEmbed = expectReplyEmbed(interaction);
+expectEmbedTitle(replyEmbed, "Hello");
+expectEmbedField(replyEmbed, "reason", "Testing");
+```
+
+## Autocomplete support
+
+When your autocomplete handler calls `interaction.respond(choices)`, the mock stores the returned choices so you can assert on them later:
+
+```js
+await interaction.respond([
+  { name: "apple", value: "apple" },
+  { name: "banana", value: "banana" },
+]);
+expectAutocompleteChoices(interaction, [
+  { name: "apple", value: "apple" },
+  { name: "banana", value: "banana" },
+]);
+```
 
 ## createMockBot()
 
