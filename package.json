@@ -7,7 +7,7 @@
   "main": "src/index.js",
   "types": "./index.d.ts",
   "bin": {
-    "djs-test-utils": "./bin/cli.js"
+    "djs-test-utils": "bin/cli.js"
   },
   "exports": {
     ".": "./src/index.js",
