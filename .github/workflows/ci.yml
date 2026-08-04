@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        discord-version: ["13.17.1", "14.27.0", "dev"]
+        discord-version: ["13.17.1", "14.27.0"]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node.js
