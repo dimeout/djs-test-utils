@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        discord-version: ["13.12.0", "14.18.2", "15.13.0"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - name: Install dependencies
+        run: npm install
+      - name: Install discord.js ${{ matrix.discord-version }}
+        run: npm install --no-save discord.js@${{ matrix.discord-version }}
+      - name: Run typecheck
+        run: npm run typecheck
+      - name: Run tests
+        run: npm test

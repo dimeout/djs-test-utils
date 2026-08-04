@@ -9,6 +9,7 @@ export {
 } from "./entities.js";
 
 export { MockInteraction } from "./interaction.js";
+export { createMockBot } from "./bot.js";
 
 export {
   expectReplied,
