@@ -46,10 +46,15 @@ This package is tested against `discord.js` versions 13, 14, and 15 in CI.
 - Shape-compatible mock objects for `Interaction`, `Message`, `User`, `Guild`,
   `GuildMember`, `Channel`, `Role`, and permissions
 - `MockInteraction` mimics slash command interactions
-- `MockButtonInteraction`, `MockSelectMenuInteraction`, and `MockModalSubmitInteraction` cover component/modal interactions
+- `MockButtonInteraction`, `MockSelectMenuInteraction`, `MockModalSubmitInteraction`,
+  `MockAutocompleteInteraction`, and context menu interaction mocks
 - Autocomplete support via `interaction.respond(choices)` and response assertions
-- `mockEmbed()` plus embed assertions for rich message replies
-- `createMockBot()` builds a connected mock client/guild/member/channel suite
+- `mockEmbed()` plus partial embed assertions for rich message replies
+- `mockClient()` and `createMockBot()` build connected mock client/guild/member/channel suites
+- Async cache fetches for users, guilds, members, and channels
+- Error-path simulation with DiscordAPIError-shaped failures
+- Thread mocks with creation, sending, and archiving
+- `resetAllMocks()` clears captured replies/sends between tests
 - Assertion helpers work without a specific test framework
 - Shared runner configs and CLI scaffolding included
 - TypeScript-ready with shipped `index.d.ts`
@@ -81,6 +86,13 @@ projects can import from `djs-test-utils` directly.
 
 ## Included exports
 
+| Category | Exports |
+| --- | --- |
+| Entity factories | `mockUser`, `mockMember`, `mockGuild`, `mockChannel`, `mockThread`, `mockRole`, `mockPermissions`, `mockMessage`, `mockClient` |
+| Interactions | `MockInteraction`, `MockButtonInteraction`, `MockSelectMenuInteraction`, `MockModalSubmitInteraction`, `MockAutocompleteInteraction`, `MockUserContextMenuInteraction`, `MockMessageContextMenuInteraction` |
+| Assertions | `expectReplied`, `expectReplyContains`, `expectReplyMatches`, `expectSentTo`, `expectReplyEmbed`, `expectEmbedField`, `expectAutocompleteChoices` |
+| Embeds and helpers | `mockEmbed`, `createMockBot`, `createDiscordAPIError`, `resetAllMocks` |
+
 You can import the package's shared test runner configs:
 
 ```js
@@ -103,6 +115,8 @@ npx djs-test-utils init src/commands/ban.js
 | `mockMember(overrides)`  | discord.js `GuildMember`                            |
 | `mockGuild(overrides)`   | discord.js `Guild`                                  |
 | `mockChannel(overrides)` | discord.js `TextChannel` (captures `.send()` calls) |
+| `mockThread(overrides)`  | discord.js `ThreadChannel`                          |
+| `mockClient(overrides)`  | discord.js `Client` caches and `.fetch()` helpers   |
 | `mockRole(overrides)`    | discord.js `Role`                                   |
 | `mockMessage(overrides)` | discord.js `Message` (for prefix-command bots)      |
 | `mockPermissions(flags)` | discord.js `PermissionsBitField`                    |
@@ -149,6 +163,9 @@ const interaction = new MockInteraction({
 Calling `reply()` twice without `deferReply()` first throws, matching
 discord.js's real interaction reply behavior.
 
+Replies, follow-ups, updates, and channel sends are stored as plain objects, so
+they are friendly to `toMatchSnapshot()` and `JSON.stringify()`.
+
 ## Component and modal interactions
 
 The package also exports dedicated mocks for component and modal events:
@@ -158,18 +175,28 @@ import {
   MockButtonInteraction,
   MockSelectMenuInteraction,
   MockModalSubmitInteraction,
+  MockAutocompleteInteraction,
+  MockUserContextMenuInteraction,
+  MockMessageContextMenuInteraction,
 } from "djs-test-utils";
 
 const button = new MockButtonInteraction({ customId: "confirm" });
 const select = new MockSelectMenuInteraction({ values: ["opt1", "opt2"] });
 const modal = new MockModalSubmitInteraction({ fields: { reason: "yes" } });
+const autocomplete = new MockAutocompleteInteraction({
+  options: { focused: "app" },
+});
 ```
 
 These support the common discord.js predicates and payloads:
 
 - `isButton()`
+- `update(payload)` and `deferUpdate()`
 - `isStringSelectMenu()` and `values`
 - `isModalSubmit()` and `fields.getTextInputValue()`
+- `isAutocomplete()` and `options.getFocused()`
+- `isUserContextMenuCommand()`, `targetUser`, and `targetMember`
+- `isMessageContextMenuCommand()` and `targetMessage`
 
 ## Embed helpers
 
@@ -192,10 +219,13 @@ const embed = mockEmbed({
 });
 
 await interaction.reply({ embeds: [embed] });
-const replyEmbed = expectReplyEmbed(interaction);
+const replyEmbed = expectReplyEmbed(interaction, { title: "Hello" });
 expectEmbedTitle(replyEmbed, "Hello");
 expectEmbedField(replyEmbed, "reason", "Testing");
 ```
+
+`expectReplyEmbed(interaction, matcher)` accepts a partial object matcher and
+normalizes both plain embed objects and `EmbedBuilder` instances.
 
 ## Autocomplete support
 
@@ -210,6 +240,59 @@ expectAutocompleteChoices(interaction, [
   { name: "apple", value: "apple" },
   { name: "banana", value: "banana" },
 ]);
+```
+
+## Error-path simulation
+
+Configure mocks to throw DiscordAPIError-shaped errors from methods that would
+normally hit Discord:
+
+```js
+const interaction = new MockInteraction({
+  commandName: "ban",
+  throwOnReply: { code: 50013 },
+});
+
+await assert.rejects(() => interaction.reply("Nope"), { code: 50013 });
+
+const channel = mockChannel({ throwOnSend: { code: 10008 } });
+await assert.rejects(() => channel.send("Gone"), { code: 10008 });
+```
+
+You can also set failures after creation:
+
+```js
+channel.simulateError("send", { code: 50013 });
+interaction.simulateError("followUp", { code: 10062 });
+```
+
+Common Discord API codes worth testing:
+
+| Code    | Meaning                                  |
+| ------- | ---------------------------------------- |
+| `50013` | Missing Permissions                      |
+| `10008` | Unknown Message                          |
+| `10062` | Unknown Interaction                      |
+| `40060` | Interaction has already been acknowledged |
+
+## Client caches and threads
+
+```js
+const channel = mockChannel({ id: "announcements" });
+const guild = mockGuild({
+  channels: new Map([[channel.id, channel]]),
+});
+const client = mockClient({
+  guilds: new Map([[guild.id, guild]]),
+  channels: new Map([[channel.id, channel]]),
+});
+
+await client.guilds.fetch(guild.id);
+await guild.channels.fetch(channel.id);
+
+const thread = await channel.threads.create({ name: "case-notes" });
+await thread.send("Added details.");
+await thread.setArchived(true);
 ```
 
 ## createMockBot()
@@ -239,6 +322,9 @@ It returns:
 - `createInteraction`
 - `createCommandInteraction`
 
+Interactions created by `createMockBot()` include `interaction.client`, so code
+that reaches through client caches can be tested without extra wiring.
+
 ## Assertion helpers
 
 Use built-in helpers or your own assertions against the mock outputs:
@@ -259,6 +345,12 @@ expectSentTo(channel, "Welcome!");
 
 These helpers throw plain `Error`s, so they work with any test framework.
 
+Use `resetAllMocks()` in runner hooks if you reuse mocks between tests:
+
+```js
+afterEach(() => resetAllMocks());
+```
+
 ## Testing prefix-command bots
 
 For bots that parse `message.content` instead of slash commands, use
@@ -276,8 +368,8 @@ expect(message.replies[0].content).toBe("Pong!");
 
 This is a **shape-compatible mock**, not a full discord.js reimplementation.
 It covers the objects and methods most bot handlers actually use. If your bot
-relies on more advanced Discord features (threads, voice, stickers, forums,
-etc.), you may need to extend the mocks yourself.
+relies on more advanced Discord features (voice, stickers, forums, sharding,
+collectors, etc.), you may need to extend the mocks yourself.
 
 Treat these mocks as a fast, first-line test harness rather than a complete
 replacement for occasional integration tests against a real bot.
@@ -292,7 +384,8 @@ npm run typecheck
 npm run test:ci
 ```
 
-See `examples/commands.js` and `test/commands.test.js` for a full worked example.
+See `examples/commands.js`, `examples/components.js`, and `test/` for worked
+examples.
 
 ## License
 

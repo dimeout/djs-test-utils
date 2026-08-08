@@ -4,6 +4,8 @@
  * These throw plain Errors on failure, which every test runner reports fine.
  */
 
+import { normalizeEmbed } from "./utils.js";
+
 /**
  * @typedef {import("../index.d.ts").MockInteraction} MockInteraction
  */
@@ -61,10 +63,48 @@ export function mockEmbed({
 }
 
 /**
- * @param {MockInteraction} interaction
- * @param {number} [index]
+ * @param {unknown} actual
+ * @param {unknown} expected
+ * @param {string} path
  */
-export function expectReplyEmbed(interaction, index = -1) {
+function assertPartialMatch(actual, expected, path) {
+  if (expected === undefined) return;
+  if (expected === null || typeof expected !== "object") {
+    if (actual !== expected) {
+      throw new Error(
+        `Expected embed ${path} to equal ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}.`,
+      );
+    }
+    return;
+  }
+
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual)) {
+      throw new Error(`Expected embed ${path} to be an array.`);
+    }
+    expected.forEach((item, index) =>
+      assertPartialMatch(actual[index], item, `${path}[${index}]`),
+    );
+    return;
+  }
+
+  for (const [key, value] of Object.entries(expected)) {
+    assertPartialMatch(
+      actual && typeof actual === "object"
+        ? /** @type {Record<string, unknown>} */ (actual)[key]
+        : undefined,
+      value,
+      path ? `${path}.${key}` : key,
+    );
+  }
+}
+
+/**
+ * @param {MockInteraction} interaction
+ * @param {Record<string, unknown> | number} [matcher]
+ */
+export function expectReplyEmbed(interaction, matcher = {}) {
+  const index = typeof matcher === "number" ? matcher : -1;
   const reply =
     index >= 0
       ? interaction.replies[index]
@@ -80,7 +120,11 @@ export function expectReplyEmbed(interaction, index = -1) {
     throw new Error(`Expected reply at index ${index} to contain an embed.`);
   }
 
-  return embeds[0];
+  const embed = normalizeEmbed(embeds[0]);
+  if (typeof matcher === "object" && matcher !== null) {
+    assertPartialMatch(embed, matcher, "embed");
+  }
+  return embed;
 }
 
 /**
@@ -113,7 +157,10 @@ export function expectEmbedDescription(embed, description) {
  * @param {string} [value]
  */
 export function expectEmbedField(embed, name, value) {
-  const field = (embed.fields ?? []).find((field) => field.name === name);
+  const normalized = /** @type {{ fields?: Array<{ name: string; value: string }> }} */ (
+    normalizeEmbed(embed)
+  );
+  const field = (normalized.fields ?? []).find((field) => field.name === name);
   if (!field) {
     throw new Error(`Expected embed to contain a field named "${name}".`);
   }

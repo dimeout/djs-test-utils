@@ -3,9 +3,11 @@ export {
   mockMember,
   mockGuild,
   mockChannel,
+  mockClient,
   mockRole,
   mockPermissions,
   mockMessage,
+  mockThread,
 } from "./entities.js";
 
 export {
@@ -13,8 +15,12 @@ export {
   MockButtonInteraction,
   MockSelectMenuInteraction,
   MockModalSubmitInteraction,
+  MockAutocompleteInteraction,
+  MockUserContextMenuInteraction,
+  MockMessageContextMenuInteraction,
 } from "./interaction.js";
 export { createMockBot } from "./bot.js";
+export { createDiscordAPIError, resetAllMocks } from "./utils.js";
 
 export {
   mockEmbed,

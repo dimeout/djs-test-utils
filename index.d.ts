@@ -94,12 +94,38 @@ export interface MockChannel {
   id: string;
   name: string;
   type: number;
-  sent: Array<{ content?: string }>;
-  send(content: string | { content: string }): Promise<MockMessage>;
+  sent: Array<MockPayload>;
+  send(content: MockReplyContent): Promise<MockMessage>;
+  threads: {
+    cache: Map<string, MockThread>;
+    create(options?: MockThreadOptions): Promise<MockThread>;
+    fetch(threadId: string): Promise<MockThread | null>;
+  };
+  simulateError(method: string, error?: MockDiscordAPIErrorInput): MockChannel;
+  simulateError(error: MockDiscordAPIErrorInput): MockChannel;
 }
 
 export type MockChannelOptions = Partial<MockChannel> & {
-  sent?: Array<{ content?: string }>;
+  sent?: Array<MockPayload>;
+  throwOnSend?: MockDiscordAPIErrorInput;
+};
+
+export interface MockThread {
+  id: string;
+  name: string;
+  type: number;
+  sent: Array<MockPayload>;
+  send(content: MockReplyContent): Promise<MockMessage>;
+  archived: boolean;
+  parent: MockChannel | null;
+  setArchived(archived?: boolean): Promise<MockThread>;
+  simulateError(method: string, error?: MockDiscordAPIErrorInput): MockThread;
+  simulateError(error: MockDiscordAPIErrorInput): MockThread;
+}
+
+export type MockThreadOptions = Partial<MockThread> & {
+  sent?: Array<MockPayload>;
+  throwOnSend?: MockDiscordAPIErrorInput;
 };
 
 export interface MockGuild {
@@ -113,11 +139,16 @@ export interface MockGuild {
   roles: {
     cache: Map<string, MockRole>;
   };
+  channels: {
+    cache: Map<string, MockChannel>;
+    fetch(channelId: string): Promise<MockChannel | null>;
+  };
 }
 
 export type MockGuildOptions = Omit<Partial<MockGuild>, "members" | "roles"> & {
   members?: Map<string, MockMember>;
   roles?: MockRole[];
+  channels?: Map<string, MockChannel>;
 };
 
 export interface MockMessage {
@@ -127,12 +158,12 @@ export interface MockMessage {
   member: MockMember;
   guild: MockGuild;
   channel: MockChannel;
-  replies: Array<{ content?: string }>;
+  replies: Array<MockPayload>;
   mentions: {
     users: Map<string, MockUser>;
     roles: Map<string, MockRole>;
   };
-  reply(content: string | { content: string }): Promise<MockMessage>;
+  reply(content: MockReplyContent): Promise<MockMessage>;
   react(): Promise<void>;
 }
 
@@ -141,7 +172,7 @@ export type MockMessageOptions = Partial<MockMessage> & {
   member?: MockMember;
   guild?: MockGuild;
   channel?: MockChannel;
-  replies?: Array<{ content?: string }>;
+  replies?: Array<MockPayload>;
   mentions?: {
     users: Map<string, MockUser>;
     roles: Map<string, MockRole>;
@@ -166,19 +197,77 @@ export interface AutocompleteChoice {
   value: string | number;
 }
 
+export type MockReplyContent =
+  | string
+  | { content?: string; embeds?: MockEmbed[]; embed?: MockEmbed; ephemeral?: boolean }
+  | { embeds: MockEmbed[] };
+
+export interface MockPayload {
+  content?: string;
+  embeds?: MockEmbed[];
+  embed?: MockEmbed;
+  ephemeral?: boolean;
+  [key: string]: unknown;
+}
+
+export type MockDiscordAPIErrorInput =
+  | Error
+  | {
+      code?: number;
+      message?: string;
+      status?: number;
+      url?: string;
+      rawError?: unknown;
+    };
+
+export interface MockClient {
+  user: MockUser;
+  users: {
+    cache: Map<string, MockUser>;
+    fetch(userId: string): Promise<MockUser | null>;
+  };
+  guilds: {
+    cache: Map<string, MockGuild>;
+    fetch(guildId: string): Promise<MockGuild | null>;
+  };
+  channels: {
+    cache: Map<string, MockChannel>;
+    fetch(channelId: string): Promise<MockChannel | null>;
+  };
+}
+
+export interface MockClientOptions extends Partial<MockClient> {
+  user?: MockUser;
+  users?: Map<string, MockUser>;
+  guilds?: Map<string, MockGuild>;
+  channels?: Map<string, MockChannel>;
+}
+
 export interface MockInteractionOptions {
-  commandName: string;
+  commandName?: string;
   subcommand?: string | null;
   options?: Record<string, unknown>;
   user?: MockUser;
   member?: MockMember;
   guild?: MockGuild;
   channel?: MockChannel;
+  client?: MockClient;
   isButtonInteraction?: boolean;
   customId?: string | null;
   values?: string[];
   fields?: Record<string, string>;
+  focused?: string | number;
+  targetUser?: MockUser;
+  targetMember?: MockMember;
+  targetMessage?: MockMessage;
   simulateRateLimit?: boolean | number;
+  throwOnReply?: MockDiscordAPIErrorInput;
+  throwOnEditReply?: MockDiscordAPIErrorInput;
+  throwOnFollowUp?: MockDiscordAPIErrorInput;
+  throwOnUpdate?: MockDiscordAPIErrorInput;
+  throwOnDeferReply?: MockDiscordAPIErrorInput;
+  throwOnDeferUpdate?: MockDiscordAPIErrorInput;
+  throwOnRespond?: MockDiscordAPIErrorInput;
 }
 
 export interface CreateMockBotOptions {
@@ -193,9 +282,17 @@ export interface CreateMockBotOptions {
 export interface CreateMockBotResult {
   client: {
     user: MockUser;
+    users: {
+      cache: Map<string, MockUser>;
+      fetch(userId: string): Promise<MockUser | null>;
+    };
     guilds: {
       cache: Map<string, MockGuild>;
       fetch(guildId: string): Promise<MockGuild | null>;
+    };
+    channels: {
+      cache: Map<string, MockChannel>;
+      fetch(channelId: string): Promise<MockChannel | null>;
     };
   };
   user: MockUser;
@@ -218,11 +315,18 @@ export class MockInteraction {
   isButton(): boolean;
   isChatInputCommand(): boolean;
   isStringSelectMenu(): boolean;
+  isUserSelectMenu(): boolean;
+  isRoleSelectMenu(): boolean;
+  isChannelSelectMenu(): boolean;
   isModalSubmit(): boolean;
+  isAutocomplete(): boolean;
+  isUserContextMenuCommand(): boolean;
+  isMessageContextMenuCommand(): boolean;
   user: MockUser;
   guild: MockGuild;
   channel: MockChannel;
   member: MockMember;
+  client: MockClient;
   options: {
     getString(name: string): string | null;
     getInteger(name: string): number | null;
@@ -232,6 +336,7 @@ export class MockInteraction {
     getMember(name: string): MockMember | null;
     getChannel(name: string): MockChannel | null;
     getRole(name: string): MockRole | null;
+    getFocused(required?: boolean): string | number | null;
     getSubcommand(): string | null;
   };
   values?: string[];
@@ -239,21 +344,21 @@ export class MockInteraction {
     getTextInputValue(name: string): string | null;
   };
   autocompleteResponses: Array<AutocompleteChoice>;
-  replies: Array<{ content?: string; embeds?: MockEmbed[]; embed?: MockEmbed }>;
-  followUps: Array<{ content?: string }>;
+  replies: Array<MockPayload>;
+  followUps: Array<MockPayload>;
+  updates: Array<MockPayload>;
   replied: boolean;
   deferred: boolean;
   ephemeralOnDefer: boolean;
-  reply(
-    content: string | { content: string } | { embeds: MockEmbed[] },
-  ): Promise<{ content?: string; embeds?: MockEmbed[] }>;
+  updateDeferred: boolean;
+  simulateError(method: string, error?: MockDiscordAPIErrorInput): this;
+  simulateError(error: MockDiscordAPIErrorInput): this;
+  reply(content: MockReplyContent): Promise<MockPayload>;
   deferReply(opts?: { ephemeral?: boolean }): Promise<void>;
-  editReply(
-    content: string | { content: string } | { embeds: MockEmbed[] },
-  ): Promise<{ content?: string; embeds?: MockEmbed[] }>;
-  followUp(
-    content: string | { content: string },
-  ): Promise<{ content?: string }>;
+  editReply(content: MockReplyContent): Promise<MockPayload>;
+  followUp(content: MockReplyContent): Promise<MockPayload>;
+  update(content: MockReplyContent): Promise<MockPayload>;
+  deferUpdate(): Promise<void>;
   respond(
     choices: Array<AutocompleteChoice>,
   ): Promise<Array<AutocompleteChoice>>;
@@ -267,19 +372,36 @@ export function mockMember(overrides?: MockMemberOptions): MockMember;
 export function mockChannel(overrides?: MockChannelOptions): MockChannel;
 export function mockGuild(overrides?: MockGuildOptions): MockGuild;
 export function mockMessage(overrides?: MockMessageOptions): MockMessage;
+export function mockThread(overrides?: MockThreadOptions): MockThread;
+export function mockClient(overrides?: MockClientOptions): MockClient;
 export function mockEmbed(options?: Partial<MockEmbed>): MockEmbed;
-export interface MockButtonInteraction extends MockInteraction {}
-export interface MockSelectMenuInteraction extends MockInteraction {
+export class MockButtonInteraction extends MockInteraction {}
+export class MockSelectMenuInteraction extends MockInteraction {
   values: string[];
 }
-export interface MockModalSubmitInteraction extends MockInteraction {
+export class MockModalSubmitInteraction extends MockInteraction {
   fields: {
     getTextInputValue(name: string): string | null;
   };
 }
+export class MockAutocompleteInteraction extends MockInteraction {}
+export class MockUserContextMenuInteraction extends MockInteraction {
+  targetUser: MockUser;
+  targetMember: MockMember;
+  targetId: string;
+}
+export class MockMessageContextMenuInteraction extends MockInteraction {
+  targetMessage: MockMessage;
+  targetId: string;
+}
 export function createMockBot(
   options?: CreateMockBotOptions,
 ): CreateMockBotResult;
+export function createDiscordAPIError(
+  error?: MockDiscordAPIErrorInput,
+  method?: string,
+): Error & { code: number; status?: number; method?: string; url?: string };
+export function resetAllMocks(): void;
 
 export function expectReplied(interaction: MockInteraction): void;
 export function expectReplyContains(
@@ -292,7 +414,7 @@ export function expectReplyMatches(
 ): void;
 export function expectReplyEmbed(
   interaction: MockInteraction,
-  index?: number,
+  matcher?: Partial<MockEmbed> | number,
 ): MockEmbed;
 export function expectEmbedTitle(embed: MockEmbed, title: string): void;
 export function expectEmbedDescription(

@@ -8,11 +8,15 @@ import type {
 } from "discord.js";
 import type {
   MockInteraction,
+  MockAutocompleteInteraction,
+  MockButtonInteraction,
   MockMember,
   MockPermissions,
   MockRole,
   MockChannel,
+  MockClient,
   MockMessage,
+  MockThread,
   MockUser,
   PermissionFlag,
 } from "../index.js";
@@ -62,6 +66,22 @@ type _InteractionReply = Extends<
 type _InteractionOptions = Extends<
   MockInteraction["options"],
   DiscordChatInputInteraction extends { options: infer O } ? O : never
+>;
+type _ButtonUpdate = Extends<
+  MockButtonInteraction["update"],
+  (...args: any[]) => Promise<any>
+>;
+type _AutocompleteFocused = Extends<
+  MockAutocompleteInteraction["options"]["getFocused"],
+  (...args: any[]) => string | number | null
+>;
+type _ClientGuildFetch = Extends<
+  MockClient["guilds"]["fetch"],
+  (id: string) => Promise<any>
+>;
+type _ThreadArchive = Extends<
+  MockThread["setArchived"],
+  (archived?: boolean) => Promise<MockThread>
 >;
 type _PermissionsShape = Extends<
   MockPermissions["has"],

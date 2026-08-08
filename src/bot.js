@@ -1,6 +1,12 @@
 // @ts-check
 import { MockInteraction } from "./interaction.js";
-import { mockUser, mockGuild, mockChannel, mockMember } from "./entities.js";
+import {
+  mockUser,
+  mockGuild,
+  mockChannel,
+  mockMember,
+  mockClient,
+} from "./entities.js";
 
 /**
  * @typedef {import("../index.js").MockUserOptions} MockUserOptions
@@ -59,14 +65,12 @@ export function createMockBot(
 
   const channel = mockChannel(channelOptions);
 
-  const client = {
+  const client = mockClient({
     user,
-    guilds: {
-      cache: new Map([[guild.id, guild]]),
-      /** @param {string} guildId */
-      fetch: async (guildId) => (guildId === guild.id ? guild : null),
-    },
-  };
+    users: new Map([[user.id, user]]),
+    guilds: new Map([[guild.id, guild]]),
+    channels: new Map([[channel.id, channel]]),
+  });
 
   /**
    * @param {Partial<MockInteractionOptions>} [overrides]
@@ -79,6 +83,7 @@ export function createMockBot(
       member,
       guild,
       channel,
+      client,
       options: { ...defaultInteractionOptions, ...overrides.options },
       ...overrides,
       simulateRateLimit:

@@ -1,6 +1,6 @@
 {
   "name": "djs-test-utils",
-  "version": "0.1.14",
+  "version": "1.0.0",
   "description": "Lightweight mock harness for unit testing discord.js bots without connecting to Discord.",
   "author": "dimeout",
   "type": "module",
@@ -10,7 +10,11 @@
     "djs-test-utils": "bin/cli.js"
   },
   "exports": {
-    ".": "./src/index.js",
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    },
     "./vitest.config.js": "./vitest.config.js",
     "./jest-preset.cjs": "./jest-preset.cjs",
     "./bin/cli.js": "./bin/cli.js"
@@ -30,7 +34,8 @@
     "jest-preset.cjs",
     "vitest.config.js",
     "examples",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "vitest run",
