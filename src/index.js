@@ -23,6 +23,16 @@ export { createMockBot } from "./bot.js";
 export { createDiscordAPIError, resetAllMocks } from "./utils.js";
 
 export {
+  MockMessageCollector,
+  MockReactionCollector,
+  MockInteractionCollector,
+  MockCollection,
+  awaitMessages,
+  awaitReactions,
+  awaitMessageComponent,
+} from "./collectors.js";
+
+export {
   mockEmbed,
   expectReplied,
   expectReplyContains,
@@ -33,4 +43,5 @@ export {
   expectEmbedField,
   expectAutocompleteChoices,
   expectSentTo,
+  expectCollected,
 } from "./assertions.js";

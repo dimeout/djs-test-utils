@@ -1,9 +1,18 @@
 // @ts-check
+import { EventEmitter } from "node:events";
 import {
   maybeThrowConfiguredError,
   normalizePayload,
   registerReset,
 } from "./utils.js";
+import {
+  MockInteractionCollector,
+  MockMessageCollector,
+  MockReactionCollector,
+  awaitMessageComponent as awaitMessageComponentImpl,
+  awaitMessages as awaitMessagesImpl,
+  awaitReactions as awaitReactionsImpl,
+} from "./collectors.js";
 
 let idCounter = 1000;
 function nextId() {
@@ -155,8 +164,8 @@ export function mockChannel(overrides = {}) {
   const threads = new Map();
   /** @type {Record<string, unknown>} */
   const errors = { send: overrides.throwOnSend };
-  /** @type {import("../index.js").MockChannel} */
-  const channel = {
+  /** @type {any} */
+  const channel = Object.assign(new EventEmitter(), {
     id,
     name: "test-channel",
     type: 0, // GUILD_TEXT
@@ -182,6 +191,14 @@ export function mockChannel(overrides = {}) {
       /** @param {string} threadId */
       fetch: async (threadId) => threads.get(threadId) ?? null,
     },
+    /** @param {Record<string, any>} [options] */
+    createMessageCollector: (options = {}) =>
+      new MockMessageCollector(channel, options),
+    /** @param {Record<string, any>} [options] */
+    awaitMessages: (options = {}) => awaitMessagesImpl(channel, options),
+    /** @param {Record<string, any>} [options] */
+    awaitMessageComponent: (options = {}) =>
+      awaitMessageComponentImpl(channel, options),
     /** @param {string | import("../index.js").MockDiscordAPIErrorInput} methodOrError @param {unknown} [error] */
     simulateError: (methodOrError, error) => {
       if (typeof methodOrError === "string") {
@@ -192,7 +209,7 @@ export function mockChannel(overrides = {}) {
       return channel;
     },
     ...overrides,
-  };
+  });
   registerReset(() => {
     sent.length = 0;
   });
@@ -304,7 +321,8 @@ export function mockMessage(overrides = {}) {
   /** @type {import("../index.js").MockChannel} */
   const channel = overrides.channel ?? mockChannel();
   const replies = overrides.replies ?? [];
-  const message = {
+  /** @type {any} */
+  const message = Object.assign(new EventEmitter(), {
     id: overrides.id ?? nextId(),
     content: overrides.content ?? "",
     author,
@@ -323,8 +341,16 @@ export function mockMessage(overrides = {}) {
       });
     },
     react: async () => {},
+    /** @param {Record<string, any>} [options] */
+    createReactionCollector: (options = {}) =>
+      new MockReactionCollector(message, options),
+    /** @param {Record<string, any>} [options] */
+    awaitReactions: (options = {}) => awaitReactionsImpl(message, options),
+    /** @param {Record<string, any>} [options] */
+    awaitMessageComponent: (options = {}) =>
+      awaitMessageComponentImpl(message, options),
     ...overrides,
-  };
+  });
   registerReset(() => {
     replies.length = 0;
   });
@@ -347,11 +373,13 @@ export function mockClient(overrides = {}) {
   const users = usersOverride ?? new Map([[user.id, user]]);
   const guilds = guildsOverride ?? new Map();
   const channels = channelsOverride ?? new Map();
-  return {
+  /** @type {any} */
+  const client = Object.assign(new EventEmitter(), {
     user,
     users: createFetchableCache(users),
     guilds: createFetchableCache(guilds),
     channels: createFetchableCache(channels),
     ...otherOverrides,
-  };
+  });
+  return client;
 }

@@ -54,6 +54,8 @@ This package is tested against `discord.js` versions 13, 14, and 15 in CI.
 - Async cache fetches for users, guilds, members, and channels
 - Error-path simulation with DiscordAPIError-shaped failures
 - Thread mocks with creation, sending, and archiving
+- Collector mocks for messages, reactions, and component interactions, with
+  `awaitMessages` / `awaitReactions` / `awaitMessageComponent` sugar
 - `resetAllMocks()` clears captured replies/sends between tests
 - Assertion helpers work without a specific test framework
 - Shared runner configs and CLI scaffolding included
@@ -90,7 +92,8 @@ projects can import from `djs-test-utils` directly.
 | --- | --- |
 | Entity factories | `mockUser`, `mockMember`, `mockGuild`, `mockChannel`, `mockThread`, `mockRole`, `mockPermissions`, `mockMessage`, `mockClient` |
 | Interactions | `MockInteraction`, `MockButtonInteraction`, `MockSelectMenuInteraction`, `MockModalSubmitInteraction`, `MockAutocompleteInteraction`, `MockUserContextMenuInteraction`, `MockMessageContextMenuInteraction` |
-| Assertions | `expectReplied`, `expectReplyContains`, `expectReplyMatches`, `expectSentTo`, `expectReplyEmbed`, `expectEmbedField`, `expectAutocompleteChoices` |
+| Collectors | `MockMessageCollector`, `MockReactionCollector`, `MockInteractionCollector`, `MockCollection`, `awaitMessages`, `awaitReactions`, `awaitMessageComponent` |
+| Assertions | `expectReplied`, `expectReplyContains`, `expectReplyMatches`, `expectSentTo`, `expectReplyEmbed`, `expectEmbedField`, `expectAutocompleteChoices`, `expectCollected` |
 | Embeds and helpers | `mockEmbed`, `createMockBot`, `createDiscordAPIError`, `resetAllMocks` |
 
 You can import the package's shared test runner configs:
@@ -295,6 +298,86 @@ await thread.send("Added details.");
 await thread.setArchived(true);
 ```
 
+## Collectors
+
+`mockChannel`, `mockMessage`, and `mockClient` are backed by Node's
+`EventEmitter`, so you can drive collectors from your tests by manually
+emitting fake events — no real Discord gateway required.
+
+The package ships shape-compatible mocks for `MessageCollector`,
+`ReactionCollector`, and `InteractionCollector`, plus the
+`awaitMessages` / `awaitReactions` / `awaitMessageComponent` convenience
+methods that real bot code typically uses.
+
+```js
+import {
+  mockChannel,
+  mockMessage,
+  mockUser,
+  expectCollected,
+} from "djs-test-utils";
+
+const channel = mockChannel();
+const collector = channel.createMessageCollector({
+  filter: (message) => message.content === "ping",
+  max: 3,
+  time: 30_000,
+});
+
+channel.emit("messageCreate", mockMessage({ content: "ping" }));
+channel.emit("messageCreate", mockMessage({ content: "pong" })); // filtered
+channel.emit("messageCreate", mockMessage({ content: "ping" }));
+
+expectCollected(collector, 2);                       // exact count
+expectCollected(collector, { content: "ping" });     // partial match
+expectCollected(collector, (m) => m.content === "ping"); // predicate
+```
+
+Each collector supports:
+
+- `filter(item, ...)` — predicate run before recording
+- `max` — stop after N collected items (reason `"limit"`)
+- `time` — stop after N ms (reason `"time"`)
+- `idle` — stop after N ms with no new items (reason `"idle"`, resets on
+  every collect)
+- `collector.collected` — a `MockCollection` (Map + `.first()`, `.last()`,
+  `.map()`, `.filter()`, `.find()`, `.random()`, etc.)
+- `collector.stop(reason)` — manual early stop
+- `'collect'` and `'end'` events
+
+Use the promise-based sugar for the common case:
+
+```js
+const collected = await channel.awaitMessages({
+  max: 1,
+  filter: (m) => m.content === "yes",
+  time: 30_000,
+});
+if (collected.first()?.content === "yes") {
+  // confirmed
+}
+```
+
+`awaitMessageComponent` resolves with a single interaction (matching
+discord.js's `max: 1` default) and supports the same `componentType`
+filter as the real collector:
+
+```js
+const interaction = await message.awaitMessageComponent({
+  componentType: "BUTTON",
+  filter: (i) => i.customId === "confirm",
+  time: 30_000,
+});
+```
+
+> Collectors are time-based. With **Vitest**, use
+> `vi.useFakeTimers()` + `vi.advanceTimersByTime()` to control the clock
+> deterministically. With real timers, just `await` the promise.
+
+`expectCollected(collector, matcher)` accepts a number (exact count), a
+partial object (matched against each collected item), or a predicate
+function.
+
 ## createMockBot()
 
 `createMockBot()` scaffolds a small test harness with connected mock objects:
@@ -369,7 +452,7 @@ expect(message.replies[0].content).toBe("Pong!");
 This is a **shape-compatible mock**, not a full discord.js reimplementation.
 It covers the objects and methods most bot handlers actually use. If your bot
 relies on more advanced Discord features (voice, stickers, forums, sharding,
-collectors, etc.), you may need to extend the mocks yourself.
+etc.), you may need to extend the mocks yourself.
 
 Treat these mocks as a fast, first-line test harness rather than a complete
 replacement for occasional integration tests against a real bot.
@@ -384,7 +467,8 @@ npm run typecheck
 npm run test:ci
 ```
 
-See `examples/commands.js`, `examples/components.js`, and `test/` for worked
+See `examples/commands.js`, `examples/components.js`, `examples/collectors.js`,
+and `test/` for worked
 examples.
 
 ## License

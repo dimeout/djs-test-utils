@@ -103,6 +103,21 @@ export interface MockChannel {
   };
   simulateError(method: string, error?: MockDiscordAPIErrorInput): MockChannel;
   simulateError(error: MockDiscordAPIErrorInput): MockChannel;
+  createMessageCollector(options?: MockMessageCollectorOptions): MockMessageCollector;
+  awaitMessages(
+    options?: MockMessageCollectorOptions & { errors?: Array<string> },
+  ): Promise<MockCollection<string, MockMessage>>;
+  awaitMessageComponent(
+    options?: MockInteractionCollectorOptions & { errors?: Array<string> },
+  ): Promise<MockInteraction | null>;
+  on(event: string, listener: (...args: any[]) => void): this;
+  once(event: string, listener: (...args: any[]) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  removeListener(event: string, listener: (...args: any[]) => void): this;
+  removeAllListeners(event?: string): this;
+  listeners(event: string): Array<(...args: any[]) => void>;
+  listenerCount(event: string): number;
 }
 
 export type MockChannelOptions = Partial<MockChannel> & {
@@ -165,6 +180,23 @@ export interface MockMessage {
   };
   reply(content: MockReplyContent): Promise<MockMessage>;
   react(): Promise<void>;
+  createReactionCollector(
+    options?: MockReactionCollectorOptions,
+  ): MockReactionCollector;
+  awaitReactions(
+    options?: MockReactionCollectorOptions & { errors?: Array<string> },
+  ): Promise<MockCollection<string, MockReactionEntry>>;
+  awaitMessageComponent(
+    options?: MockInteractionCollectorOptions & { errors?: Array<string> },
+  ): Promise<MockInteraction | null>;
+  on(event: string, listener: (...args: any[]) => void): this;
+  once(event: string, listener: (...args: any[]) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  removeListener(event: string, listener: (...args: any[]) => void): this;
+  removeAllListeners(event?: string): this;
+  listeners(event: string): Array<(...args: any[]) => void>;
+  listenerCount(event: string): number;
 }
 
 export type MockMessageOptions = Partial<MockMessage> & {
@@ -234,6 +266,14 @@ export interface MockClient {
     cache: Map<string, MockChannel>;
     fetch(channelId: string): Promise<MockChannel | null>;
   };
+  on(event: string, listener: (...args: any[]) => void): this;
+  once(event: string, listener: (...args: any[]) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  removeListener(event: string, listener: (...args: any[]) => void): this;
+  removeAllListeners(event?: string): this;
+  listeners(event: string): Array<(...args: any[]) => void>;
+  listenerCount(event: string): number;
 }
 
 export interface MockClientOptions extends Partial<MockClient> {
@@ -431,3 +471,171 @@ export function expectAutocompleteChoices(
   expectedChoices: Array<AutocompleteChoice>,
 ): void;
 export function expectSentTo(channel: MockChannel, substring: string): void;
+
+// --- Collector mocks ----------------------------------------------------
+
+export interface MockReactionEntry {
+  reaction: { emoji?: { name?: string | null } | null } & Record<string, any>;
+  user: MockUser;
+}
+
+export interface MockMessageCollectorOptions {
+  filter?: (message: MockMessage, ...rest: any[]) => boolean;
+  max?: number;
+  time?: number | null;
+  idle?: number | null;
+}
+
+export interface MockReactionCollectorOptions {
+  filter?: (entry: MockReactionEntry, ...rest: any[]) => boolean;
+  max?: number;
+  time?: number | null;
+  idle?: number | null;
+}
+
+export interface MockInteractionCollectorOptions {
+  filter?: (interaction: MockInteraction, ...rest: any[]) => boolean;
+  componentType?: string | number;
+  max?: number;
+  time?: number | null;
+  idle?: number | null;
+}
+
+/**
+ * Shape compatible with discord.js's `Collection`, exposing the small set
+ * of helpers most bot code uses: `.size`, `.first()`, `.last()`, `.map()`,
+ * `.filter()`, `.find()`, `.some()`, `.every()`, `.values()`, `.keys()`,
+ * etc.
+ */
+export interface BaseCollectorLike {
+  collected: Map<string, any> & {
+    size: number;
+    first(amount?: number): any;
+    last(amount?: number): any;
+    at(index: number): any;
+    keyAt(index: number): string | null;
+    random(): any;
+    map<T>(fn: (value: any, key: string, col: this) => T): Array<T>;
+    filter(fn: (value: any, key: string, col: this) => boolean): this;
+    find(fn: (value: any, key: string, col: this) => boolean): any;
+    findKey(fn: (value: any, key: string, col: this) => boolean): string | undefined;
+    some(fn: (value: any, key: string, col: this) => boolean): boolean;
+    every(fn: (value: any, key: string, col: this) => boolean): boolean;
+    reduce<T>(
+      fn: (acc: T, value: any, key: string, col: this) => T,
+      initial?: T,
+    ): T | undefined;
+  };
+  ended: boolean;
+  endReason: string | null;
+  on(event: "collect", listener: (item: any) => void): this;
+  on(event: "end", listener: (collected: any, reason: string) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  stop(reason?: string): void;
+}
+
+export class MockCollection<K = string, V = any> extends Map<K, V> {
+  first(amount?: number): V | null | Array<V>;
+  last(amount?: number): V | null | Array<V>;
+  at(index: number): V | null;
+  keyAt(index: number): K | null;
+  random(): V | null;
+  map<R>(fn: (value: V, key: K, col: this) => R): Array<R>;
+  filter(fn: (value: V, key: K, col: this) => boolean): MockCollection<K, V>;
+  find(fn: (value: V, key: K, col: this) => boolean): V | undefined;
+  findKey(fn: (value: V, key: K, col: this) => boolean): K | undefined;
+  some(fn: (value: V, key: K, col: this) => boolean): boolean;
+  every(fn: (value: V, key: K, col: this) => boolean): boolean;
+  reduce<R>(
+    fn: (acc: R, value: V, key: K, col: this) => R,
+    initial?: R,
+  ): R | undefined;
+}
+
+export class MockMessageCollector implements BaseCollectorLike {
+  constructor(target: EventEmitterLike, options?: MockMessageCollectorOptions);
+  collected: MockCollection<string, MockMessage>;
+  filter: (message: MockMessage, ...rest: any[]) => boolean;
+  max: number;
+  time: number | null;
+  idle: number | null;
+  ended: boolean;
+  endReason: string | null;
+  on(event: "collect", listener: (message: MockMessage) => void): this;
+  on(event: "end", listener: (collected: any, reason: string) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  stop(reason?: string): void;
+}
+
+export class MockReactionCollector implements BaseCollectorLike {
+  constructor(target: EventEmitterLike, options?: MockReactionCollectorOptions);
+  collected: MockCollection<string, MockReactionEntry>;
+  filter: (entry: MockReactionEntry, ...rest: any[]) => boolean;
+  max: number;
+  time: number | null;
+  idle: number | null;
+  ended: boolean;
+  endReason: string | null;
+  on(event: "collect", listener: (entry: MockReactionEntry) => void): this;
+  on(event: "end", listener: (collected: any, reason: string) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  stop(reason?: string): void;
+}
+
+export class MockInteractionCollector implements BaseCollectorLike {
+  constructor(
+    target: EventEmitterLike,
+    options?: MockInteractionCollectorOptions,
+  );
+  collected: MockCollection<string, MockInteraction>;
+  filter: (interaction: MockInteraction, ...rest: any[]) => boolean;
+  componentType: string | number | undefined;
+  max: number;
+  time: number | null;
+  idle: number | null;
+  ended: boolean;
+  endReason: string | null;
+  on(event: "collect", listener: (interaction: MockInteraction) => void): this;
+  on(event: "end", listener: (collected: any, reason: string) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+  stop(reason?: string): void;
+}
+
+/**
+ * Minimal shape required for a collector target. `mockChannel`, `mockMessage`,
+ * and `mockClient` all satisfy this via `EventEmitter`-backed methods.
+ */
+export interface EventEmitterLike {
+  on(event: string, listener: (...args: any[]) => void): unknown;
+  once(event: string, listener: (...args: any[]) => void): unknown;
+  off(event: string, listener: (...args: any[]) => void): unknown;
+  emit(event: string, ...args: any[]): boolean;
+  removeListener(event: string, listener: (...args: any[]) => void): unknown;
+}
+
+export function awaitMessages(
+  target: EventEmitterLike,
+  options?: MockMessageCollectorOptions & { errors?: Array<string> },
+): Promise<MockCollection<string, MockMessage>>;
+export function awaitReactions(
+  target: EventEmitterLike,
+  options?: MockReactionCollectorOptions & { errors?: Array<string> },
+): Promise<MockCollection<string, MockReactionEntry>>;
+export function awaitMessageComponent(
+  target: EventEmitterLike,
+  options?: MockInteractionCollectorOptions & { errors?: Array<string> },
+): Promise<MockInteraction | null>;
+
+export type PartialMatcher = Record<
+  string,
+  string | number | boolean | null | undefined | PartialMatcher
+>;
+
+export function expectCollected(
+  collector: BaseCollectorLike,
+  matcherOrCount: number | PartialMatcher | ((item: any) => boolean),
+): Array<any>;

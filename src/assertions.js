@@ -209,3 +209,93 @@ export function expectSentTo(channel, substring) {
     );
   }
 }
+
+/**
+ * Assert that a collector's `collected` map contains a specific count of
+ * items, or at least one entry matching a partial matcher.
+ *
+ * - `expectCollected(collector, 3)` asserts `collected.size === 3`.
+ * - `expectCollected(collector, (item) => ...)` asserts at least one
+ *   collected item satisfies the predicate.
+ * - `expectCollected(collector, { content: "hi" })` asserts at least one
+ *   collected item has a matching `content` (using the same partial-match
+ *   rules as `expectReplyEmbed`).
+ *
+ * @typedef {import("../index.js").BaseCollectorLike} BaseCollectorLike
+ * @typedef {import("../index.js").PartialMatcher} PartialMatcher
+ *
+ * @param {BaseCollectorLike} collector
+ * @param {number | PartialMatcher | ((item: any) => boolean)} matcherOrCount
+ * @returns {Array<any>} the matching collected items (or all collected
+ *   items, when asserting on count only).
+ */
+export function expectCollected(collector, matcherOrCount) {
+  const collected = Array.from(collector.collected?.values?.() ?? []);
+
+  if (typeof matcherOrCount === "number") {
+    if (collected.length !== matcherOrCount) {
+      throw new Error(
+        `Expected collector to gather ${matcherOrCount} item(s), but got ${collected.length}.`,
+      );
+    }
+    return collected;
+  }
+
+  if (typeof matcherOrCount === "function") {
+    const matched = collected.filter((item) => matcherOrCount(item));
+    if (matched.length === 0) {
+      throw new Error(
+        `Expected at least one collected item to match the predicate, but none did. ` +
+          `Collected: ${JSON.stringify(collected)}`,
+      );
+    }
+    return matched;
+  }
+
+  /** @type {PartialMatcher} */
+  const matcher = matcherOrCount;
+  /** @param {any} item */
+  const matches = (item) => {
+    if (item === matcher) return true;
+    if (matcher === null || typeof matcher !== "object") return false;
+    for (const [key, expected] of Object.entries(matcher)) {
+      const actual = item?.[key];
+      if (
+        expected !== null &&
+        typeof expected === "object" &&
+        !Array.isArray(expected)
+      ) {
+        if (!matchesForKey(actual, expected)) return false;
+        continue;
+      }
+      if (actual !== expected) return false;
+    }
+    return true;
+  };
+  const matched = collected.filter(matches);
+  if (matched.length === 0) {
+    throw new Error(
+      `Expected at least one collected item to match ${JSON.stringify(matcher)}, ` +
+        `but none did. Collected: ${JSON.stringify(collected)}`,
+    );
+  }
+  return matched;
+}
+
+/**
+ * @param {unknown} actual
+ * @param {object} expected
+ */
+function matchesForKey(actual, expected) {
+  if (actual === undefined || actual === null) return false;
+  if (typeof actual !== "object") return false;
+  for (const [k, v] of Object.entries(expected)) {
+    const child = /** @type {Record<string, unknown>} */ (actual)[k];
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      if (!matchesForKey(child, /** @type {object} */ (v))) return false;
+      continue;
+    }
+    if (child !== v) return false;
+  }
+  return true;
+}
