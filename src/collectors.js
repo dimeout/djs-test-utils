@@ -134,12 +134,7 @@ export class MockCollection extends Map {
         acc = /** @type {R} */ (/** @type {unknown} */ (value));
         started = true;
       } else {
-        acc = fn(
-          /** @type {R} */ (acc),
-          value,
-          key,
-          this,
-        );
+        acc = fn(/** @type {R} */ (acc), value, key, this);
       }
     }
     return acc;
@@ -283,7 +278,8 @@ export class MockReactionCollector extends BaseMockCollector {
      */
     this._listener = (reaction, user) => {
       const item = { reaction, user };
-      const key = user?.id ?? reaction?.id ?? `reaction-${Date.now()}-${Math.random()}`;
+      const key =
+        user?.id ?? reaction?.id ?? `reaction-${Date.now()}-${Math.random()}`;
       this._record(item, key);
     };
     this.target.on(event, this._listener);
@@ -359,7 +355,8 @@ export class MockInteractionCollector extends BaseMockCollector {
     /** @type {(interaction: any) => void} */
     this._listener = (interaction) => {
       if (!matchesComponentType(this.componentType, interaction)) return;
-      const key = interaction?.id ?? `interaction-${Date.now()}-${Math.random()}`;
+      const key =
+        interaction?.id ?? `interaction-${Date.now()}-${Math.random()}`;
       this._record(interaction, key);
     };
     this.target.on(event, this._listener);

@@ -88,13 +88,13 @@ projects can import from `djs-test-utils` directly.
 
 ## Included exports
 
-| Category | Exports |
-| --- | --- |
-| Entity factories | `mockUser`, `mockMember`, `mockGuild`, `mockChannel`, `mockThread`, `mockRole`, `mockPermissions`, `mockMessage`, `mockClient` |
-| Interactions | `MockInteraction`, `MockButtonInteraction`, `MockSelectMenuInteraction`, `MockModalSubmitInteraction`, `MockAutocompleteInteraction`, `MockUserContextMenuInteraction`, `MockMessageContextMenuInteraction` |
-| Collectors | `MockMessageCollector`, `MockReactionCollector`, `MockInteractionCollector`, `MockCollection`, `awaitMessages`, `awaitReactions`, `awaitMessageComponent` |
-| Assertions | `expectReplied`, `expectReplyContains`, `expectReplyMatches`, `expectSentTo`, `expectReplyEmbed`, `expectEmbedField`, `expectAutocompleteChoices`, `expectCollected` |
-| Embeds and helpers | `mockEmbed`, `createMockBot`, `createDiscordAPIError`, `resetAllMocks` |
+| Category           | Exports                                                                                                                                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entity factories   | `mockUser`, `mockMember`, `mockGuild`, `mockChannel`, `mockThread`, `mockRole`, `mockPermissions`, `mockMessage`, `mockClient`                                                                              |
+| Interactions       | `MockInteraction`, `MockButtonInteraction`, `MockSelectMenuInteraction`, `MockModalSubmitInteraction`, `MockAutocompleteInteraction`, `MockUserContextMenuInteraction`, `MockMessageContextMenuInteraction` |
+| Collectors         | `MockMessageCollector`, `MockReactionCollector`, `MockInteractionCollector`, `MockCollection`, `awaitMessages`, `awaitReactions`, `awaitMessageComponent`                                                   |
+| Assertions         | `expectReplied`, `expectReplyContains`, `expectReplyMatches`, `expectSentTo`, `expectReplyEmbed`, `expectEmbedField`, `expectAutocompleteChoices`, `expectCollected`                                        |
+| Embeds and helpers | `mockEmbed`, `createMockBot`, `createDiscordAPIError`, `resetAllMocks`                                                                                                                                      |
 
 You can import the package's shared test runner configs:
 
@@ -271,11 +271,11 @@ interaction.simulateError("followUp", { code: 10062 });
 
 Common Discord API codes worth testing:
 
-| Code    | Meaning                                  |
-| ------- | ---------------------------------------- |
-| `50013` | Missing Permissions                      |
-| `10008` | Unknown Message                          |
-| `10062` | Unknown Interaction                      |
+| Code    | Meaning                                   |
+| ------- | ----------------------------------------- |
+| `50013` | Missing Permissions                       |
+| `10008` | Unknown Message                           |
+| `10062` | Unknown Interaction                       |
 | `40060` | Interaction has already been acknowledged |
 
 ## Client caches and threads
@@ -328,8 +328,8 @@ channel.emit("messageCreate", mockMessage({ content: "ping" }));
 channel.emit("messageCreate", mockMessage({ content: "pong" })); // filtered
 channel.emit("messageCreate", mockMessage({ content: "ping" }));
 
-expectCollected(collector, 2);                       // exact count
-expectCollected(collector, { content: "ping" });     // partial match
+expectCollected(collector, 2); // exact count
+expectCollected(collector, { content: "ping" }); // partial match
 expectCollected(collector, (m) => m.content === "ping"); // predicate
 ```
 

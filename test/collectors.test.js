@@ -49,7 +49,9 @@ describe("MockMessageCollector", () => {
     });
 
     const endSpy = [];
-    collector.on("end", (collected, reason) => endSpy.push({ size: collected.size, reason }));
+    collector.on("end", (collected, reason) =>
+      endSpy.push({ size: collected.size, reason }),
+    );
 
     channel.emit("messageCreate", mockMessage({ content: "a" }));
     channel.emit("messageCreate", mockMessage({ content: "b" }));
@@ -328,10 +330,7 @@ describe("expectCollected assertion helper", () => {
     channel.emit("messageCreate", mockMessage({ content: "x" }));
     channel.emit("messageCreate", mockMessage({ content: "y" }));
 
-    const matched = expectCollected(
-      collector,
-      (item) => item.content === "x",
-    );
+    const matched = expectCollected(collector, (item) => item.content === "x");
     expect(matched).toHaveLength(1);
   });
 });

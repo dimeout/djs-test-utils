@@ -103,7 +103,9 @@ export interface MockChannel {
   };
   simulateError(method: string, error?: MockDiscordAPIErrorInput): MockChannel;
   simulateError(error: MockDiscordAPIErrorInput): MockChannel;
-  createMessageCollector(options?: MockMessageCollectorOptions): MockMessageCollector;
+  createMessageCollector(
+    options?: MockMessageCollectorOptions,
+  ): MockMessageCollector;
   awaitMessages(
     options?: MockMessageCollectorOptions & { errors?: Array<string> },
   ): Promise<MockCollection<string, MockMessage>>;
@@ -231,7 +233,12 @@ export interface AutocompleteChoice {
 
 export type MockReplyContent =
   | string
-  | { content?: string; embeds?: MockEmbed[]; embed?: MockEmbed; ephemeral?: boolean }
+  | {
+      content?: string;
+      embeds?: MockEmbed[];
+      embed?: MockEmbed;
+      ephemeral?: boolean;
+    }
   | { embeds: MockEmbed[] };
 
 export interface MockPayload {
@@ -518,7 +525,9 @@ export interface BaseCollectorLike {
     map<T>(fn: (value: any, key: string, col: this) => T): Array<T>;
     filter(fn: (value: any, key: string, col: this) => boolean): this;
     find(fn: (value: any, key: string, col: this) => boolean): any;
-    findKey(fn: (value: any, key: string, col: this) => boolean): string | undefined;
+    findKey(
+      fn: (value: any, key: string, col: this) => boolean,
+    ): string | undefined;
     some(fn: (value: any, key: string, col: this) => boolean): boolean;
     every(fn: (value: any, key: string, col: this) => boolean): boolean;
     reduce<T>(

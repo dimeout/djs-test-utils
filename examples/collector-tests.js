@@ -29,10 +29,7 @@ describe("collector handler examples", () => {
       "messageCreate",
       mockMessage({ content: "yes", author: otherUser }),
     );
-    channel.emit(
-      "messageCreate",
-      mockMessage({ content: "yes", author }),
-    );
+    channel.emit("messageCreate", mockMessage({ content: "yes", author }));
 
     expect(await promise).toBe(true);
   });
@@ -42,10 +39,7 @@ describe("collector handler examples", () => {
     const author = mockUser({ username: "asker" });
     const promise = waitForConfirmation(channel, author);
 
-    channel.emit(
-      "messageCreate",
-      mockMessage({ content: "no", author }),
-    );
+    channel.emit("messageCreate", mockMessage({ content: "no", author }));
 
     expect(await promise).toBe(false);
   });

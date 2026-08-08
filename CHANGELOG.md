@@ -65,4 +65,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-command interaction mocks can be constructed without command names.
 - Reply/send payloads are normalized to plain serializable objects. Custom class
   instances passed inside `embeds` are stored as their JSON/plain-object shape.
-

@@ -289,9 +289,10 @@ export function mockGuild(overrides = {}) {
   const roles = /** @type {Array<import("../index.js").MockRole>} */ (
     overrideRoles ?? []
   );
-  const channels = /** @type {Map<string, import("../index.js").MockChannel>} */ (
-    overrideChannels ?? new Map()
-  );
+  const channels =
+    /** @type {Map<string, import("../index.js").MockChannel>} */ (
+      overrideChannels ?? new Map()
+    );
   return {
     id,
     name: "Test Guild",

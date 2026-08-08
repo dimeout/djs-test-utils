@@ -157,9 +157,10 @@ export function expectEmbedDescription(embed, description) {
  * @param {string} [value]
  */
 export function expectEmbedField(embed, name, value) {
-  const normalized = /** @type {{ fields?: Array<{ name: string; value: string }> }} */ (
-    normalizeEmbed(embed)
-  );
+  const normalized =
+    /** @type {{ fields?: Array<{ name: string; value: string }> }} */ (
+      normalizeEmbed(embed)
+    );
   const field = (normalized.fields ?? []).find((field) => field.name === name);
   if (!field) {
     throw new Error(`Expected embed to contain a field named "${name}".`);
